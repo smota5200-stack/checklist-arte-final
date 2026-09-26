@@ -304,7 +304,7 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
     </div>
     <div class="bar">
       <input id="busca" type="search" placeholder="Buscar por código, projeto ou cliente" aria-label="Buscar pedidos">
-      <button type="button" class="btn primary" id="novoPedido">Novo pedido</button>
+      <button type="button" class="btn primary" id="novoPedido" data-admin hidden>Novo pedido</button>
     </div>
     <div class="gsel" id="filtros" role="group" aria-label="Filtrar por status"></div>
     <div id="listaPedidos"></div>
@@ -316,7 +316,6 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
       <button type="button" class="btn" id="copiarLink">Copiar link</button>
       <button type="button" class="btn" id="exportar">Exportar JSON</button>
       <button type="button" class="btn" id="imprimir">Imprimir / PDF</button>
-      <button type="button" class="btn danger" id="excluir" data-admin hidden>Excluir</button>
       <span class="sub me" style="margin-left:auto"></span>
     </div>
     <header>
@@ -329,19 +328,12 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
       </div>
     </header>
     <div class="lockbar" id="lockbar" hidden></div>
-    <form class="job" id="jobForm" autocomplete="off" onsubmit="return false">
-      <label>Código do pedido<input data-f="codigo" placeholder="Nº do pedido"></label>
-      <label>Projeto<input data-f="projeto" placeholder="Nome do projeto"></label>
-      <label>Cliente<input data-f="cliente" placeholder="Nome do cliente"></label>
-      <label>Formato final<input data-f="formato" placeholder="1110 × 275 mm"></label>
-      <label>Gráfica<input data-f="grafica" placeholder="Fornecedor"></label>
-      <label>Responsável<input data-f="responsavel" placeholder="Arte-finalista"></label>
-    </form>
     <nav class="tabs" role="tablist" aria-label="Seções do pedido">
       <button role="tab" data-tab="checklist" aria-selected="true">Checklist</button>
       <button role="tab" data-tab="comparacao" aria-selected="false">Comparação</button>
       <button role="tab" data-tab="aprovacao" aria-selected="false">Aprovação <span class="badge" id="bAprov"></span></button>
       <button role="tab" data-tab="historico" aria-selected="false">Histórico</button>
+      <button role="tab" data-tab="admin" aria-selected="false" data-admin hidden>Admin</button>
     </nav>
     <div class="tabp" data-tab="checklist" role="tabpanel">
       <main id="sections"></main>
@@ -385,6 +377,17 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
     </div>
     <div class="tabp" data-tab="aprovacao" role="tabpanel" hidden><div id="aprov"></div></div>
     <div class="tabp" data-tab="historico" role="tabpanel" hidden><ol class="hist" id="hist"></ol></div>
+    <div class="tabp" data-tab="admin" role="tabpanel" hidden data-admin>
+      <form class="job" id="jobForm" autocomplete="off" onsubmit="return false">
+        <label>Código do pedido<input data-f="codigo" placeholder="Nº do pedido"></label>
+        <label>Projeto<input data-f="projeto" placeholder="Nome do projeto"></label>
+        <label>Cliente<input data-f="cliente" placeholder="Nome do cliente"></label>
+        <label>Formato final<input data-f="formato" placeholder="1110 × 275 mm"></label>
+        <label>Gráfica<input data-f="grafica" placeholder="Fornecedor"></label>
+        <label>Responsável<input data-f="responsavel" placeholder="Arte-finalista"></label>
+      </form>
+      <button type="button" class="btn danger" id="excluir">Excluir pedido</button>
+    </div>
   </section>
 
   <section class="view" id="vMembros" hidden>
@@ -620,6 +623,7 @@ $("#filtros").addEventListener("click", e=>{ const b = e.target.closest("[data-f
 $("#busca").addEventListener("input", renderLista);
 $("#listaPedidos").addEventListener("keydown", e=>{ if(e.key === "Enter" && e.target.dataset.ir) ir(e.target.dataset.ir); });
 $("#novoPedido").addEventListener("click", async ()=>{
+  if(ME.papel !== "admin") return;
   const {data, error} = await sb.from("pedidos").insert({projeto:"", itens_esperados: ALL_IDS}).select("id").single();
   if(error) return flash(erroMsg(error), true);
   ir("p=" + data.id);
@@ -694,15 +698,15 @@ function renderPedido(){
   // formulário (não sobrescreve o campo que está sendo digitado)
   document.querySelectorAll("#vPedido [data-f]").forEach(el=>{
     if(document.activeElement !== el && !pendentes[el.dataset.f]) el.value = P[el.dataset.f] ?? "";
-    el.disabled = lock;
+    el.disabled = lock || ME.papel !== "admin";
   });
   // trava
   const lb = $("#lockbar");
   lb.hidden = !lock;
   if(lock){
     const ult = ETAPAS[ETAPAS.length-1];
-    lb.innerHTML = `<b>Aprovado em ${dt(P.aprovado_em)}${ult?.por_email ? " por " + esc(ult.por_email) : ""}.</b> O pedido está travado. <button type="button" class="btn" id="reabrir2">Reabrir pedido</button>`;
-    $("#reabrir2").onclick = reabrir;
+    lb.innerHTML = `<b>Aprovado em ${dt(P.aprovado_em)}${ult?.por_email ? " por " + esc(ult.por_email) : ""}.</b> O pedido está travado.${ME.papel === "admin" ? ' <button type="button" class="btn" id="reabrir2">Reabrir pedido</button>' : ""}`;
+    $("#reabrir2")?.addEventListener("click", reabrir);
   }
   // itens
   document.querySelectorAll("#sections .row").forEach(r=>{
@@ -718,7 +722,7 @@ function renderPedido(){
   progresso();
   if(document.activeElement?.id !== "convIn") renderGuia();
   const ci = $("#convIn"); if(ci) ci.disabled = lock;
-  $("#saveCmp").disabled = lock;
+  $("#saveCmp").disabled = lock || ME.papel !== "admin";
   renderAprovacao(); renderHistorico();
 }
 function progresso(){
@@ -739,6 +743,7 @@ function progresso(){
 // salvar campos com atraso (enquanto digita)
 const pendentes = {};
 function setCampo(campo, valor){
+  if(ME.papel !== "admin") return;
   if(travado()) return avisoTrava();
   P[campo] = valor; pendentes[campo] = valor;
   clearTimeout(setCampo["t_" + campo]);
@@ -787,6 +792,7 @@ $("#sections").addEventListener("click", e=>{
 
 // abas do pedido
 function aba(t){
+  if(t === "admin" && ME.papel !== "admin") t = "checklist";
   document.querySelectorAll("#vPedido .tabs [data-tab]").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
   document.querySelectorAll("#vPedido .tabp").forEach(p => p.hidden = p.dataset.tab !== t);
   if(t === "comparacao") drawCmp();
@@ -810,6 +816,7 @@ $("#exportar").addEventListener("click", ()=>{
   a.download = ("checklist_" + (P.codigo || P.id)).replace(/[^\w\-]+/g,"_") + ".json"; a.click();
 });
 $("#excluir").addEventListener("click", async ()=>{
+  if(ME.papel !== "admin") return;
   const ok = await perguntar("Excluir pedido?", `O pedido “${P.codigo || P.projeto || "sem nome"}” e todo o histórico dele serão apagados. Isso não pode ser desfeito.`, {campo:false, ok:"Excluir"});
   if(!ok) return;
   const {error} = await sb.from("pedidos").delete().eq("id", P.id);
@@ -831,7 +838,7 @@ function renderAprovacao(){
     : P.status === "aprovado" ? `<div class="grule ok">Pedido aprovado em ${dt(P.aprovado_em)}.</div>`
     : `<div class="grule">Checklist completo. As etapas são aprovadas em ordem.</div>`;
   $("#aprov").innerHTML = resumo + `<ol class="etapas">${ETAPAS.map(e => {
-    const livre = !lock && e.status === "pendente";
+    const livre = !lock && e.status === "pendente" && ME.papel === "admin";
     return `<li class="etapa ${e.status}" data-e="${e.id}">
       <div class="eh">
         <span class="eo">${e.ordem}</span>
@@ -847,14 +854,15 @@ function renderAprovacao(){
         ${!lock && e.status !== "recusado" && P.status === "aprovacao" && (!e.aprovador_email || e.aprovador_email === ME.email || ME.papel === "admin") ? `<button type="button" class="btn danger" data-acao="recusar">Recusar</button>` : ""}
         ${livre && ETAPAS.length > 1 ? `<button type="button" class="btn" data-acao="remover">Remover</button>` : ""}
       </div></li>`; }).join("")}</ol>
-    ${lock ? `<button type="button" class="btn" id="reabrir">Reabrir pedido</button>` : `
+    ${lock ? (ME.papel === "admin" ? `<button type="button" class="btn" id="reabrir">Reabrir pedido</button>` : "") : ME.papel === "admin" ? `
     <div class="nova">
       <input id="novaNome" placeholder="Nova etapa, ex.: Aprovação do cliente" aria-label="Nome da nova etapa">
       <select id="novaAprov" aria-label="Quem aprova">${opts(null)}</select>
       <button type="button" class="btn" id="addEtapa">Adicionar etapa</button>
-    </div>`}`;
+    </div>` : ""}`;
   $("#reabrir")?.addEventListener("click", reabrir);
   $("#addEtapa")?.addEventListener("click", async ()=>{
+    if(ME.papel !== "admin") return;
     const nome = $("#novaNome").value.trim(); if(!nome) return $("#novaNome").focus();
     const ordem = Math.max(0, ...ETAPAS.map(e => e.ordem)) + 1;
     const {error} = await sb.from("pedido_etapas").insert({pedido_id:P.id, ordem, nome, aprovador_email: $("#novaAprov").value || null});
@@ -863,6 +871,7 @@ function renderAprovacao(){
   });
 }
 $("#aprov").addEventListener("change", async e=>{
+  if(ME.papel !== "admin") return;
   const li = e.target.closest("[data-e]"); if(!li) return;
   const campo = e.target.classList.contains("eaprov") ? {aprovador_email: e.target.value || null}
               : e.target.classList.contains("enome") ? {nome: e.target.value.trim() || "Etapa"} : null;
@@ -883,12 +892,14 @@ $("#aprov").addEventListener("click", async e=>{
     if(c === null) return;
     r = await sb.rpc("recusar_etapa", {p_etapa:id, p_comentario:c});
   } else {
+    if(ME.papel !== "admin") return;
     r = await sb.from("pedido_etapas").delete().eq("id", id);
   }
   if(r.error) return flash(erroMsg(r.error), true);
   if(await carregarPedido(P.id)) renderPedido();
 });
 async function reabrir(){
+  if(ME.papel !== "admin") return;
   const m = await perguntar("Reabrir pedido", "Informe o motivo. As aprovações serão zeradas e o motivo fica no histórico.", {obrigatorio:true, ok:"Reabrir"});
   if(m === null) return;
   const {error} = await sb.rpc("reabrir_pedido", {p_pedido:P.id, p_motivo:m});
@@ -941,6 +952,7 @@ function renderMembros(){
 }
 $("#addMembro").addEventListener("submit", async e=>{
   e.preventDefault();
+  if(ME.papel !== "admin") return;
   const email = $("#mEmail").value.trim().toLowerCase();
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return flash("E-mail inválido.", true);
   const {error} = await sb.from("membros").insert({email, nome: $("#mNome").value.trim() || null, papel: $("#mPapel").value});
@@ -950,6 +962,7 @@ $("#addMembro").addEventListener("submit", async e=>{
   flash("Acesso liberado. Mande o link do app para a pessoa entrar com esse e-mail.");
 });
 $("#listaMembros").addEventListener("change", async e=>{
+  if(ME.papel !== "admin") return;
   const tr = e.target.closest("[data-m]"); if(!tr) return;
   const upd = e.target.classList.contains("mpapel") ? {papel:e.target.value} : e.target.classList.contains("mnome") ? {nome:e.target.value.trim() || null} : null;
   if(!upd) return;
@@ -957,6 +970,7 @@ $("#listaMembros").addEventListener("change", async e=>{
   if(error) flash(erroMsg(error), true); else { flash("Salvo"); carregarMembros(); }
 });
 $("#listaMembros").addEventListener("click", async e=>{
+  if(ME.papel !== "admin") return;
   if(!e.target.classList.contains("rm")) return;
   const email = e.target.closest("[data-m]").dataset.m;
   const ok = await perguntar("Remover acesso?", `${email} não vai mais conseguir ver nem aprovar pedidos. O histórico dessa pessoa continua registrado.`, {campo:false, ok:"Remover"});
@@ -1122,6 +1136,7 @@ document.getElementById("resetAdj").addEventListener("click", ()=>{
 });
 
 document.getElementById("saveCmp").addEventListener("click", async ()=>{
+  if(ME.papel !== "admin") return;
   if(CMP.pct == null) return;
   if(travado()) return avisoTrava();
   const comp = {criacao:CMP.nameA, artefinal:CMP.nameB, diferenca:+CMP.pct.toFixed(2), tolerancia:val("tol"),
@@ -1138,7 +1153,8 @@ document.getElementById("saveCmp").addEventListener("click", async ()=>{
 // [nome, [C,M,Y,K], [R,G,B], hex, pantone]
 let GUIAS = {};
 const cmykTxt = c => `C${c[0]} M${c[1]} Y${c[2]} K${c[3]}`;
-function coresDoGuia(g){ return (g === "todas" ? Object.keys(GUIAS) : [g]).flatMap(k => GUIAS[k].grupos.flatMap(gr => gr[1].map(c => ({guia:k, n:c[0], cmyk:c[1], rgb:c[2], hex:c[3], pms:c[4]})))); }
+function chavesDoGuia(g){ return (g === "camel" ? ["camel"] : ["legend", "aroma"]).filter(k => GUIAS[k]); }
+function coresDoGuia(g){ return chavesDoGuia(g).flatMap(k => GUIAS[k].grupos.flatMap(gr => gr[1].map(c => ({guia:k, n:c[0], cmyk:c[1], rgb:c[2], hex:c[3], pms:c[4]})))); }
 function lerCor(l){
   const hx = l.match(/#([0-9a-f]{6})\b/i) || l.trim().match(/^([0-9a-f]{6})$/i);
   if(hx){ const h = hx[1]; return {tipo:"hex", rgb:[0,2,4].map(i => parseInt(h.substr(i,2),16))}; }
@@ -1161,14 +1177,16 @@ function casar(cor, lista){
 function renderGuia(){
   const box = document.getElementById("guia"); if(!box) return;
   if(!Object.keys(GUIAS).length){ box.innerHTML = '<p class="pl">Guia de cores indisponível.</p>'; return; }
-  const st = cur(), g = st.guia || "camel";
+  const st = cur(), g = st.guia === "camel" ? "camel" : "legend";
   const btn = (k, t) => `<button type="button" data-g="${k}" aria-pressed="${g===k}">${t}</button>`;
-  const grupos = g === "todas" ? Object.values(GUIAS).flatMap(x => x.grupos.map(gr => [x.nome + " · " + gr[0], gr[1]])) : GUIAS[g].grupos;
+  const chaves = chavesDoGuia(g);
+  const grupos = chaves.flatMap(k => GUIAS[k].grupos.map(gr => [chaves.length > 1 ? GUIAS[k].nome + " · " + gr[0] : gr[0], gr[1]]));
+  const regras = chaves.map(k => GUIAS[k].regra ? `<div class="grule ${GUIAS[k].alerta?"warnA":""}">${GUIAS[k].regra}</div>` : "").join("");
   box.innerHTML = `
     <h3>Guia de cores da marca</h3>
     <p class="pl">Escolha a linha do job. Clique numa cor para copiar o CMYK. Na conversão, cole as cores usadas na arte para conferir com o guia.</p>
-    <div class="gsel" role="group" aria-label="Guia de cores">${btn("camel","Camel Yellow & Blue")}${btn("legend","Legend")}${btn("aroma","Legend Aroma")}${btn("todas","Todas")}</div>
-    ${g !== "todas" ? `<div class="grule ${GUIAS[g].alerta?"warnA":""}">${GUIAS[g].regra}</div>` : ""}
+    <div class="gsel" role="group" aria-label="Guia de cores">${btn("camel","Camel")}${btn("legend","Legend")}</div>
+    ${regras}
     ${grupos.map(([t, cs]) => `<div class="ggroup"><h4>${t}</h4><div class="sw">${cs.map(c => `
       <button type="button" data-copy="${cmykTxt(c[1])}" title="Copiar ${cmykTxt(c[1])}">
         <span class="chip" style="background:${c[3]}"></span>
@@ -1204,13 +1222,14 @@ function renderConv(){
 }
 document.addEventListener("click", e=>{
   const gb = e.target.closest(".gsel [data-g]");
-  if(gb){ if(travado()) return avisoTrava(); setCampo("guia", gb.dataset.g); renderGuia(); return; }
+  if(gb){ if(travado()) return avisoTrava(); if(ME.papel === "admin") setCampo("guia", gb.dataset.g); else P.guia = gb.dataset.g; renderGuia(); return; }
   const cp = e.target.closest(".sw [data-copy]");
   if(cp){ navigator.clipboard?.writeText(cp.dataset.copy).then(()=>flash(cp.dataset.copy + " copiado"), ()=>flash(cp.dataset.copy)); }
 });
 document.addEventListener("input", e=>{
   if(e.target.id !== "convIn") return;
-  setCampo("cores_conferencia", e.target.value); clearTimeout(window._cv); window._cv = setTimeout(renderConv, 200);
+  if(ME.papel === "admin") setCampo("cores_conferencia", e.target.value); else P.cores_conferencia = e.target.value;
+  clearTimeout(window._cv); window._cv = setTimeout(renderConv, 200);
 });
 
 
