@@ -251,7 +251,12 @@ dialog p{margin:0 0 12px;color:var(--muted);font-size:14px}
 dialog textarea{min-height:90px;margin-bottom:14px}
 dialog .dbtn{display:flex;gap:8px;justify-content:flex-end}
 @media (max-width:640px){.etapa{grid-template-columns:1fr}.ea{justify-content:flex-start}.hist li{grid-template-columns:1fr;gap:2px}}
-@media print{.toast,.lockbar button,.nova,.ea,[data-tab="historico"]{display:none!important}.tabp[hidden]{display:block!important}}
+@media print{
+  .toast,.lockbar button,.nova,.ea,[data-tab="historico"]{display:none!important}
+  .tabp[hidden]{display:block!important}
+  .chk:checked{background:#fff!important;border-color:#1E8E57!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .chk:checked::after{border-color:#1E8E57!important}
+}
 
 footer{margin-top:36px;font-size:13px;color:var(--muted)}
 
@@ -819,7 +824,7 @@ $("#excluir").addEventListener("click", async ()=>{
   if(ME.papel !== "admin") return;
   const ok = await perguntar("Excluir pedido?", `O pedido “${P.codigo || P.projeto || "sem nome"}” e todo o histórico dele serão apagados. Isso não pode ser desfeito.`, {campo:false, ok:"Excluir"});
   if(!ok) return;
-  const {error} = await sb.from("pedidos").delete().eq("id", P.id);
+  const {error} = await sb.rpc("excluir_pedido", {p_pedido:P.id});
   if(error) return flash(erroMsg(error), true);
   ir("");
 });
