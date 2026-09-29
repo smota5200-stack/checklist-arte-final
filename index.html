@@ -132,6 +132,22 @@ section.step{margin-bottom:30px}
 .warn{margin-top:10px;padding:10px 12px;border-left:4px solid var(--m);background:var(--field);font-size:14px;border-radius:0 6px 6px 0;display:none}
 .warn.on{display:block}
 .legend{font-size:13px;color:var(--muted);margin-top:8px}
+#regioes{margin-top:18px}
+#regioes h3{font-size:17px;margin:0 0 4px}
+#regioes .rsub{font-size:13px;color:var(--muted);margin:0 0 12px}
+#regioes .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+#regioes .rg{border:2px solid #E6007E;border-radius:10px;padding:10px;background:var(--sheet)}
+#regioes .rg header{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px}
+#regioes .rg .num{background:#E6007E;color:#fff;font-weight:800;border-radius:999px;min-width:26px;height:26px;display:grid;place-items:center;font-size:13px}
+#regioes .rg header span{color:var(--muted)}
+#regioes .rg header button{margin-left:auto;border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--ink)}
+#regioes .pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#regioes .pair figure{margin:0}
+#regioes .pair figcaption{font-size:11px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+#regioes .pair canvas{width:100%;height:auto;display:block;border-radius:4px;border:1px solid var(--line);background:#fff}
+#regioes .ok{border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--ok);font-weight:600}
+.adm-h{font-size:18px;margin:4px 0 10px}
+.adm-del{margin-top:24px;padding-top:16px;border-top:1px solid var(--line)}
 .legend i{display:inline-block;width:10px;height:10px;background:#E6007E;border-radius:2px;margin-right:5px;vertical-align:middle}
 @media (max-width:640px){.drops{grid-template-columns:1fr}}
 @media print{.cmp .drops,.cmp .modes,.cmp .ctrls,.cmp .result button{display:none!important}.panel{border:0;padding:0}}
@@ -257,7 +273,7 @@ dialog textarea{min-height:90px;margin-bottom:14px}
 dialog .dbtn{display:flex;gap:8px;justify-content:flex-end}
 @media (max-width:640px){.etapa{grid-template-columns:1fr}.ea{justify-content:flex-start}.hist li{grid-template-columns:1fr;gap:2px}}
 @media print{
-  .toast,.lockbar button,.nova,.ea,[data-tab="historico"]{display:none!important}
+  .toast,.lockbar button,.nova,.ea,.tabp[data-tab="admin"],#regioes .rgrid button,.modes{display:none!important}
   .tabp[hidden]{display:block!important}
   .chk:checked{background:#fff!important;border-color:#1E8E57!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .chk:checked::after{border-color:#1E8E57!important}
@@ -351,7 +367,6 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
       <button role="tab" data-tab="checklist" aria-selected="true">Checklist</button>
       <button role="tab" data-tab="comparacao" aria-selected="false">Comparação</button>
       <button role="tab" data-tab="aprovacao" aria-selected="false">Aprovação <span class="badge" id="bAprov"></span></button>
-      <button role="tab" data-tab="historico" aria-selected="false">Histórico</button>
       <button role="tab" data-tab="admin" aria-selected="false" data-admin hidden>Admin</button>
     </nav>
     <div class="tabp" data-tab="checklist" role="tabpanel">
@@ -361,7 +376,7 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
     <div class="tabp" data-tab="comparacao" role="tabpanel" hidden>
 <section class="cmp" id="cmp" style="margin-top:0">
     <h2>Comparar criação × arte-final</h2>
-    <p>Carregue a criação aprovada (PNG em baixa) e a arte-final exportada. As diferenças aparecem em magenta: texto trocado, preço, elemento deslocado ou faltando.</p>
+    <p>Carregue a criação aprovada e a arte-final exportada. Cada diferença encontrada ganha uma caixa numerada e aparece ampliada logo abaixo, com a criação ao lado da arte-final: texto trocado, preço, elemento deslocado ou faltando.</p>
     <div class="drops">
       <label class="drop" id="dropA"><b>1. Criação aprovada</b><span>PNG ou JPG. Clique ou arraste o arquivo.</span><input type="file" accept="image/*"></label>
       <label class="drop" id="dropB"><b>2. Arte-final</b><span>PNG, JPG ou PDF exportado. Clique ou arraste o arquivo.</span><input type="file" accept="image/*,application/pdf"></label>
@@ -369,6 +384,7 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
     <div class="panel" id="panel">
       <div class="modes" role="group" aria-label="Modo de comparação">
         <button type="button" data-m="diff" aria-pressed="true">Diferenças</button>
+        <button type="button" data-m="blink" aria-pressed="false">Piscar</button>
         <button type="button" data-m="over" aria-pressed="false">Sobrepor</button>
         <button type="button" data-m="swipe" aria-pressed="false">Cortina</button>
         <button type="button" data-m="side" aria-pressed="false">Lado a lado</button>
@@ -383,7 +399,8 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
         <label>Escala da arte-final <output id="scOut">100,0%</output><input type="range" id="sc" min="950" max="1050" value="1000"></label>
       </div>
       <div class="stage" id="stage"><canvas id="view"></canvas></div>
-      <div class="legend" id="legend"><i></i>Área diferente. O restante aparece esmaecido.</div>
+      <div class="legend" id="legend"><i></i>Área diferente, com caixa numerada. O restante aparece esmaecido.</div>
+      <div id="regioes"></div>
       <div class="warn" id="warn"></div>
       <div class="result">
         <span class="big" id="pctDiff">–</span>
@@ -395,9 +412,10 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
   </section>
     </div>
     <div class="tabp" data-tab="aprovacao" role="tabpanel" hidden><div id="aprov"></div></div>
-    <div class="tabp" data-tab="historico" role="tabpanel" hidden><ol class="hist" id="hist"></ol></div>
     <div class="tabp" data-tab="admin" role="tabpanel" hidden data-admin>
-      <button type="button" class="btn danger" id="excluir">Excluir pedido</button>
+      <h2 class="adm-h">Histórico do pedido</h2>
+      <ol class="hist" id="hist"></ol>
+      <div class="adm-del"><button type="button" class="btn danger" id="excluir">Excluir pedido</button></div>
     </div>
   </section>
 
@@ -434,48 +452,6 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
 <script>
 /* ---------- Estrutura do checklist (ids estáveis: servem para scripts JSX) ---------- */
 const SECTIONS = [
-  {id:"cores", title:"Cores", items:[
-    ["cor_cmyk","Documento configurado em CMYK","Verificar o modo de cor de todos os elementos antes da exportação."],
-    ["img_cmyk","Imagens convertidas para CMYK","Nenhum elemento RGB no arquivo final."],
-    ["perfil","Perfil de cor conferido","Usar o perfil solicitado pela gráfica, quando houver."]
-  ], note:["y","RGB e CMYK se comportam de forma diferente: cores muito vibrantes no monitor podem mudar na impressão."]},
-  {id:"resolucao", title:"Resolução das imagens", items:[
-    ["ppi","Resolução adequada ao tamanho final","Referência geral: 300 ppi efetivos no tamanho de impressão."],
-    ["ampliacao","Ampliações excessivas verificadas","Nenhuma imagem pequena usada em dimensão muito grande."],
-    ["nitidez","Fotos e texturas nítidas","Sem serrilhado, compressão ou pixelização visíveis."]
-  ]},
-  {id:"sangria", title:"Sangria e corte", items:[
-    ["sangria","Sangria configurada","Usar a medida da gráfica; 3 mm é comum, mas confirme."],
-    ["borda","Fundos e imagens ultrapassam o corte","Nenhuma área branca após o refile."],
-    ["marcas","Marcas de corte só quando solicitadas","Não inserir marcas que a gráfica não pediu."]
-  ]},
-  {id:"margem", title:"Margem de segurança", items:[
-    ["txt_margem","Textos afastados da linha de corte","Referência: cerca de 5 mm de margem interna."],
-    ["logos","Logotipos protegidos","Nada importante colado ao corte."],
-    ["infos","Telefones, endereços e dados protegidos","Atenção redobrada em peças pequenas e com faca."]
-  ]},
-  {id:"tipografia", title:"Tipografia", items:[
-    ["revisao","Textos revisados","Ortografia, números, preços, telefones e endereços."],
-    ["fontes","Fontes incorporadas ou convertidas","Conforme o fluxo da gráfica; conferir antes de exportar."],
-    ["editavel","Arquivo editável original preservado","Nunca substituir o arquivo de trabalho pela versão em curvas."]
-  ], note:["m","Depois de converter textos em curvas, alterações de conteúdo ficam trabalhosas. Mantenha sempre uma cópia editável."]},
-  {id:"preto", title:"Preto e cores especiais", tool:"guia", items:[
-    ["k100","Textos pequenos em 100% K","C 0 / M 0 / Y 0 / K 100."],
-    ["cores_marca","Cores da marca conferidas com o guia","Camel Yellow & Blue, Legend ou Winston: use o CMYK do guia, não a conversão automática do RGB."],
-    ["preto_rico","Preto de grandes áreas conferido","Composição de preto rico recomendada pela gráfica."],
-    ["tac","Cobertura total de tinta dentro do limite","Nada de 400%; o limite depende do processo, papel e perfil."]
-  ]},
-  {id:"efeitos", title:"Transparências, efeitos e vetores", items:[
-    ["transp","Transparências verificadas","Sombras, opacidades, máscaras e efeitos conferidos no PDF."],
-    ["vetores","Vetores íntegros","Logotipos e ilustrações sem falhas."],
-    ["overprint","Sobreimpressões conferidas","Principalmente pretos, brancos e elementos pequenos."]
-  ]},
-  {id:"exportacao", title:"Exportação", items:[
-    ["pdf_padrao","PDF no padrão da gráfica","PDF/X-1a, PDF/X-4 ou o que for solicitado."],
-    ["pdf_sangria","Sangria incluída no PDF","Conferir que a área de sangria aparece no arquivo."],
-    ["pdf_tamanho","Tamanho final conferido","Dimensões físicas e orientação da página."],
-    ["pdf_aberto","PDF aberto e revisado após exportar","Nunca enviar sem conferir o arquivo final."]
-  ]},
   {id:"final", title:"Revisão final", items:[
     ["aprov_cliente","Conteúdo aprovado pelo cliente",""],
     ["f_dimensoes","Dimensões conferidas",""],
@@ -483,9 +459,17 @@ const SECTIONS = [
     ["f_imagens","Imagens conferidas",""],
     ["f_textos","Textos e números conferidos",""],
     ["f_sangria","Sangria e margens conferidas",""],
-    ["f_comparacao","Arte-final comparada com a criação","Use a comparação abaixo para encontrar diferenças."],
+    ["f_comparacao","Arte-final comparada com a criação","Use a aba Comparação para encontrar diferenças."],
     ["f_pdf","PDF final conferido visualmente",""],
     ["f_pronto","Arquivo pronto para envio",""]
+  ]},
+  {id:"guia_cores", title:"Guia de cores das marcas", tool:"guia", items:[
+    ["cores_marca","Cores da marca conferidas com o guia","Camel, Legend ou Winston: use o CMYK do guia, não a conversão automática do RGB."]
+  ]},
+  {id:"resolucao", title:"Resolução das imagens", items:[
+    ["ppi","Resolução adequada ao tamanho final","Referência geral: 300 ppi efetivos no tamanho de impressão."],
+    ["ampliacao","Ampliações excessivas verificadas","Nenhuma imagem pequena usada em dimensão muito grande."],
+    ["nitidez","Fotos e texturas nítidas","Sem serrilhado, compressão ou pixelização visíveis."]
   ]}
 ];
 const ALL_IDS = SECTIONS.flatMap(s => s.items.map(i => i[0]));
@@ -950,7 +934,7 @@ function descrever(v){
     case "etapa_recusada": return `<b class="badc">recusou</b> a etapa “${esc(d.nome)}”: “${esc(d.comentario)}”`;
     case "pedido_aprovado": return `<b class="okc">Pedido aprovado</b>`;
     case "pedido_reaberto": return `<b>reabriu o pedido</b>: “${esc(d.motivo)}”`;
-    case "comparacao_registrada": return `registrou a comparação criação × arte-final: ${String(d.diferenca).replace(".",",")}% de diferença (${esc(d.criacao || "")} × ${esc(d.artefinal || "")})`;
+    case "comparacao_registrada": return `registrou a comparação criação × arte-final: ${String(d.diferenca).replace(".",",")}% de diferença${d.pontos != null ? ", " + d.pontos + " ponto(s)" : ""} (${esc(d.criacao || "")} × ${esc(d.artefinal || "")})`;
     case "dados_alterados": return "alterou " + Object.entries(d).map(([k,x]) => `${CAMPOS[k] || k}: “${esc(x.de ?? "")}” → “${esc(x.para ?? "")}”`).join("; ");
     default: return esc(v.acao);
   }
@@ -1129,17 +1113,105 @@ function drawCmp(){
   const tol = val("tol"), pa = ba.data, pb = bb.data;
   const out = mode === "diff" ? vctx.createImageData(W,H) : null, po = out && out.data;
   let n = 0;
+  const mask = new Uint8Array(W*H);
   for(let i = 0; i < pa.length; i += 4){
     const d = Math.max(Math.abs(pa[i]-pb[i]), Math.abs(pa[i+1]-pb[i+1]), Math.abs(pa[i+2]-pb[i+2]));
-    if(d > tol){ n++; if(po){ po[i]=230; po[i+1]=0; po[i+2]=126; po[i+3]=255; } }
+    if(d > tol){ n++; mask[i>>2] = 1; if(po){ po[i]=230; po[i+1]=0; po[i+2]=126; po[i+3]=255; } }
     else if(po){ const l = 0.3*pa[i]+0.59*pa[i+1]+0.11*pa[i+2], g = 255 - (255-l)*0.3; po[i]=po[i+1]=po[i+2]=g; po[i+3]=255; }
   }
   if(out) vctx.putImageData(out,0,0);
+  if(mode === "blink"){ CMP.la = layer(A, full, W, H); CMP.lb = layer(CMP.B, cb, W, H, false, true); piscar(true); } else piscar(false);
   CMP.pct = n / (W*H) * 100;
+  CMP.regioes = acharRegioes(mask, W, H);
+  if(mode !== "side") desenharCaixas(vctx, CMP.regioes);
+  renderRegioes(A, full, cb);
   document.getElementById("pctDiff").textContent = CMP.pct.toFixed(1).replace(".",",") + "%";
-  document.getElementById("diffMsg").textContent = CMP.pct < 0.5
+  const nr = CMP.regioes.length;
+  document.getElementById("diffMsg").textContent = !nr
     ? "da área difere. Praticamente idênticas nessa tolerância."
-    : "da área difere entre a criação e a arte-final. Veja as manchas em magenta no modo Diferenças.";
+    : `da área difere, em ${nr} ${nr === 1 ? "ponto" : "pontos"} numerados na peça e ampliados abaixo.`;
+}
+// agrupa pixels diferentes em áreas (grade de células + vizinhança)
+function acharRegioes(mask, W, H){
+  const cs = Math.max(6, Math.round(Math.max(W, H) / 220)), gw = Math.ceil(W/cs), gh = Math.ceil(H/cs);
+  const cel = new Uint8Array(gw*gh), lim = cs*cs*0.06;
+  for(let gy = 0; gy < gh; gy++) for(let gx = 0; gx < gw; gx++){
+    let c = 0;
+    for(let y = gy*cs, ye = Math.min(H, y+cs); y < ye; y++){ const r = y*W; for(let x = gx*cs, xe = Math.min(W, x+cs); x < xe; x++) c += mask[r+x]; }
+    if(c > lim) cel[gy*gw+gx] = 1;
+  }
+  const vis = new Uint8Array(gw*gh), regs = [], R = 2; // junta manchas até 2 células de distância
+  for(let i = 0; i < cel.length; i++){
+    if(!cel[i] || vis[i]) continue;
+    const pilha = [i]; vis[i] = 1; let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1, k = 0;
+    while(pilha.length){
+      const j = pilha.pop(), jx = j % gw, jy = (j / gw) | 0; k++;
+      if(jx < x0) x0 = jx; if(jx > x1) x1 = jx; if(jy < y0) y0 = jy; if(jy > y1) y1 = jy;
+      for(let dy = -R; dy <= R; dy++) for(let dx = -R; dx <= R; dx++){
+        const nx = jx+dx, ny = jy+dy; if(nx < 0 || ny < 0 || nx >= gw || ny >= gh) continue;
+        const q = ny*gw+nx; if(cel[q] && !vis[q]){ vis[q] = 1; pilha.push(q); }
+      }
+    }
+    if(k < 2) continue; // ignora ruído de uma célula só
+    const pad = cs;
+    const x = Math.max(0, x0*cs - pad), y = Math.max(0, y0*cs - pad);
+    regs.push({x, y, w: Math.min(W, (x1+1)*cs + pad) - x, h: Math.min(H, (y1+1)*cs + pad) - y, peso:k});
+  }
+  regs.sort((a,b) => b.peso - a.peso);
+  return regs.slice(0, 24).sort((a,b) => (a.y - b.y) || (a.x - b.x));
+}
+function desenharCaixas(ctx, regs){
+  const lw = Math.max(3, Math.round(Math.max(CMP.W, CMP.H) / 400)), fs = Math.max(16, lw*6);
+  ctx.save(); ctx.lineWidth = lw; ctx.font = `800 ${fs}px system-ui,sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "center";
+  regs.forEach((r, i) => {
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = lw + 4; ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = "#E6007E"; ctx.lineWidth = lw; ctx.strokeRect(r.x, r.y, r.w, r.h);
+    const rad = fs*0.85, cx = Math.max(rad, r.x), cy = Math.max(rad, r.y);
+    ctx.fillStyle = "#E6007E"; ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI*2); ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.stroke();
+    ctx.fillStyle = "#fff"; ctx.fillText(String(i+1), cx, cy + 1);
+  });
+  ctx.restore();
+}
+function recorte(src, crop, r){
+  // converte a caixa (em coordenadas da área de trabalho) para a imagem original
+  const m = Math.max(r.w, r.h) * 0.5, x0 = Math.max(0, r.x - m), y0 = Math.max(0, r.y - m);
+  r = {x:x0, y:y0, w:Math.min(CMP.W, r.x + r.w + m) - x0, h:Math.min(CMP.H, r.y + r.h + m) - y0}; // um pouco de contexto em volta
+  const kx = crop.sw / CMP.W, ky = crop.sh / CMP.H, c = document.createElement("canvas");
+  const esc = Math.min(1, 520 / Math.max(r.w*kx, r.h*ky));
+  c.width = Math.max(1, Math.round(r.w*kx*esc)); c.height = Math.max(1, Math.round(r.h*ky*esc));
+  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0,0,c.width,c.height);
+  x.drawImage(src, crop.sx + r.x*kx, crop.sy + r.y*ky, r.w*kx, r.h*ky, 0, 0, c.width, c.height);
+  return c;
+}
+function renderRegioes(A, full, cb){
+  const box = document.getElementById("regioes"), regs = CMP.regioes || [];
+  if(!regs.length){ box.innerHTML = `<div class="ok">Nenhuma diferença relevante encontrada nessa tolerância.</div>`; return; }
+  box.innerHTML = `<h3>${regs.length} ${regs.length === 1 ? "diferença encontrada" : "diferenças encontradas"}</h3>
+    <p class="rsub">Confira cada área: à esquerda a criação aprovada, à direita a arte-final. Se for ruído de exportação, aumente a tolerância.</p>
+    <div class="rgrid">${regs.map((r,i) => `<article class="rg"><header><b class="num">${i+1}</b><span>${Math.round(r.w/CMP.W*100)}% × ${Math.round(r.h/CMP.H*100)}% da peça</span><button type="button" data-ver="${i}">Ver na peça</button></header>
+      <div class="pair"><figure><figcaption>Criação</figcaption><div data-a="${i}"></div></figure><figure><figcaption>Arte-final</figcaption><div data-b="${i}"></div></figure></div></article>`).join("")}</div>`;
+  const adjB = layer(CMP.B, cb, CMP.W, CMP.H, false, true), wk = {sx:0, sy:0, sw:CMP.W, sh:CMP.H};
+  regs.forEach((r,i) => {
+    box.querySelector(`[data-a="${i}"]`).appendChild(recorte(A, full, r));
+    box.querySelector(`[data-b="${i}"]`).appendChild(recorte(adjB, wk, r));
+  });
+}
+document.getElementById("regioes").addEventListener("click", e => {
+  const b = e.target.closest("[data-ver]"); if(!b) return;
+  const r = CMP.regioes[+b.dataset.ver], st = document.getElementById("stage");
+  if(!st.classList.contains("real")) document.getElementById("zoom").click();
+  st.scrollIntoView({behavior:"smooth", block:"center"});
+  setTimeout(() => { const k = view.width / CMP.W; st.scrollTo({left: r.x*k - st.clientWidth/2 + r.w*k/2, top: r.y*k - st.clientHeight/2 + r.h*k/2, behavior:"smooth"}); }, 250);
+});
+let blinkT = null;
+function piscar(on){
+  clearInterval(blinkT); blinkT = null;
+  if(!on) return;
+  let f = false;
+  const pinta = () => { vctx.drawImage(f ? CMP.lb : CMP.la, 0, 0); desenharCaixas(vctx, CMP.regioes || []); f = !f; };
+  pinta();
+  blinkT = setInterval(() => { if(CMP.mode !== "blink" || document.getElementById("panel").closest(".tabp").hidden){ clearInterval(blinkT); return; } pinta(); }, 550);
 }
 let cmpT;
 const redraw = ()=>{ clearTimeout(cmpT); cmpT = setTimeout(drawCmp, 60); };
@@ -1149,7 +1221,7 @@ document.querySelectorAll(".modes [data-m]").forEach(b=> b.addEventListener("cli
   const mw = document.getElementById("mixWrap");
   mw.classList.toggle("hide", !(CMP.mode === "over" || CMP.mode === "swipe"));
   document.getElementById("mixLabel").textContent = CMP.mode === "swipe" ? "Posição da cortina" : "Opacidade da arte-final";
-  document.getElementById("tolWrap").classList.toggle("hide", CMP.mode !== "diff");
+  document.getElementById("tolWrap").classList.toggle("hide", CMP.mode === "side");
   drawCmp();
 }));
 [["mix","mixOut",v=>v+"%"],["tol","tolOut",v=>v],["dx","dxOut",v=>v+" px"],["dy","dyOut",v=>v+" px"],["sc","scOut",v=>(v/10).toFixed(1).replace(".",",")+"%"]]
@@ -1167,7 +1239,7 @@ document.getElementById("saveCmp").addEventListener("click", async ()=>{
   if(ME.papel !== "admin") return;
   if(CMP.pct == null) return;
   if(travado()) return avisoTrava();
-  const comp = {criacao:CMP.nameA, artefinal:CMP.nameB, diferenca:+CMP.pct.toFixed(2), tolerancia:val("tol"),
+  const comp = {criacao:CMP.nameA, artefinal:CMP.nameB, diferenca:+CMP.pct.toFixed(2), tolerancia:val("tol"), pontos:(CMP.regioes||[]).length,
     sangria_mm: parseFloat(document.getElementById("bleed").value) || 0,
     ajuste:{x:val("dx"), y:val("dy"), escala:val("sc")/10}, data:new Date().toISOString()};
   const {error} = await sb.from("pedidos").update({comparacao:comp}).eq("id", P.id);
