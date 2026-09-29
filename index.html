@@ -70,8 +70,10 @@ h1{font-size:clamp(34px,6vw,54px);line-height:1;margin:0 0 10px;
 
 /* Dados do job */
 .job{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;background:var(--sheet);
-  border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:34px}
+  border:1px solid var(--line);border-radius:10px;padding:18px;margin:0 0 22px}
 .job label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
+.job .full{grid-column:1/-1}
+.job input:disabled{opacity:1;color:var(--ink);cursor:default}
 .job input,textarea{border:1px solid transparent;background:var(--field);border-radius:6px;padding:9px 10px;width:100%;color:var(--ink);font-size:15px}
 .job input:focus,textarea:focus{border-color:var(--c);outline:none}
 
@@ -204,6 +206,9 @@ header .stb{margin-bottom:10px}
 .tbl.lista tbody tr{cursor:pointer}
 .tbl.lista tbody tr:hover td{background:var(--field)}
 .tbl.lista td{padding:11px 12px}
+.tbl.lista{min-width:820px}
+.tbl.lista .arq{font-size:13px;color:var(--muted);word-break:break-all;max-width:260px}
+.tbl.lista .rev{font-size:13px;line-height:1.35}
 .sub{font-size:13px;color:var(--muted)}
 .mini{height:6px;background:var(--line);border-radius:3px;overflow:hidden;width:90px;margin-bottom:3px}
 .mini i{display:block;height:100%;background:var(--ok)}
@@ -308,7 +313,7 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
       <button type="button" class="btn" data-sair>Sair</button>
     </div>
     <div class="bar">
-      <input id="busca" type="search" placeholder="Buscar por código, projeto ou cliente" aria-label="Buscar pedidos">
+      <input id="busca" type="search" placeholder="Buscar por projeto, job, arquivo, cliente ou revisor" aria-label="Buscar pedidos">
       <button type="button" class="btn primary" id="novoPedido" data-admin hidden>Novo pedido</button>
     </div>
     <div class="gsel" id="filtros" role="group" aria-label="Filtrar por status"></div>
@@ -333,6 +338,15 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
       </div>
     </header>
     <div class="lockbar" id="lockbar" hidden></div>
+    <form class="job" id="jobForm" autocomplete="off" onsubmit="return false" aria-label="Dados do job">
+      <label>Job nº<input data-f="codigo" placeholder="Número do job"></label>
+      <label>Projeto<input data-f="projeto" placeholder="Nome do projeto"></label>
+      <label>Cliente<input data-f="cliente" placeholder="Nome do cliente"></label>
+      <label class="full">Nome do arquivo<input data-f="arquivo" placeholder="ex.: WIN_Display_1110x275_v3.pdf"></label>
+      <label>Formato final<input data-f="formato" placeholder="1110 × 275 mm"></label>
+      <label>Gráfica<input data-f="grafica" placeholder="Fornecedor"></label>
+      <label>Responsável<input data-f="responsavel" placeholder="Arte-finalista"></label>
+    </form>
     <nav class="tabs" role="tablist" aria-label="Seções do pedido">
       <button role="tab" data-tab="checklist" aria-selected="true">Checklist</button>
       <button role="tab" data-tab="comparacao" aria-selected="false">Comparação</button>
@@ -383,14 +397,6 @@ footer{margin-top:36px;font-size:13px;color:var(--muted)}
     <div class="tabp" data-tab="aprovacao" role="tabpanel" hidden><div id="aprov"></div></div>
     <div class="tabp" data-tab="historico" role="tabpanel" hidden><ol class="hist" id="hist"></ol></div>
     <div class="tabp" data-tab="admin" role="tabpanel" hidden data-admin>
-      <form class="job" id="jobForm" autocomplete="off" onsubmit="return false">
-        <label>Código do pedido<input data-f="codigo" placeholder="Nº do pedido"></label>
-        <label>Projeto<input data-f="projeto" placeholder="Nome do projeto"></label>
-        <label>Cliente<input data-f="cliente" placeholder="Nome do cliente"></label>
-        <label>Formato final<input data-f="formato" placeholder="1110 × 275 mm"></label>
-        <label>Gráfica<input data-f="grafica" placeholder="Fornecedor"></label>
-        <label>Responsável<input data-f="responsavel" placeholder="Arte-finalista"></label>
-      </form>
       <button type="button" class="btn danger" id="excluir">Excluir pedido</button>
     </div>
   </section>
@@ -455,7 +461,7 @@ const SECTIONS = [
   ], note:["m","Depois de converter textos em curvas, alterações de conteúdo ficam trabalhosas. Mantenha sempre uma cópia editável."]},
   {id:"preto", title:"Preto e cores especiais", tool:"guia", items:[
     ["k100","Textos pequenos em 100% K","C 0 / M 0 / Y 0 / K 100."],
-    ["cores_marca","Cores da marca conferidas com o guia","Camel Yellow & Blue ou Legend: use o CMYK do guia, não a conversão automática do RGB."],
+    ["cores_marca","Cores da marca conferidas com o guia","Camel Yellow & Blue, Legend ou Winston: use o CMYK do guia, não a conversão automática do RGB."],
     ["preto_rico","Preto de grandes áreas conferido","Composição de preto rico recomendada pela gráfica."],
     ["tac","Cobertura total de tinta dentro do limite","Nada de 400%; o limite depende do processo, papel e perfil."]
   ]},
@@ -595,16 +601,26 @@ async function abrirLista(){
   mostrar("vLista");
   await carregarLista();
   let t;
-  canalLista = sb.channel("lista").on("postgres_changes", {event:"*", schema:"public", table:"pedidos"}, ()=>{ clearTimeout(t); t = setTimeout(carregarLista, 400); }).subscribe();
+  const recarregar = ()=>{ clearTimeout(t); t = setTimeout(carregarLista, 400); };
+  canalLista = sb.channel("lista")
+    .on("postgres_changes", {event:"*", schema:"public", table:"pedidos"}, recarregar)
+    .on("postgres_changes", {event:"*", schema:"public", table:"pedido_itens"}, recarregar)
+    .on("postgres_changes", {event:"*", schema:"public", table:"pedido_etapas"}, recarregar)
+    .subscribe();
 }
 async function carregarLista(){
-  const [p, i] = await Promise.all([
-    sb.from("pedidos").select("id,codigo,projeto,cliente,status,atualizado_em,aprovado_em,itens_esperados").order("atualizado_em", {ascending:false}),
-    sb.from("pedido_itens").select("pedido_id,item_id")
+  const [p, i, e] = await Promise.all([
+    sb.from("pedidos").select("id,codigo,arquivo,projeto,cliente,status,atualizado_em,aprovado_em,itens_esperados").order("atualizado_em", {ascending:false}),
+    sb.from("pedido_itens").select("pedido_id,item_id,por_email"),
+    sb.from("pedido_etapas").select("pedido_id,ordem,status,por_email,em").order("ordem")
   ]);
   if(p.error){ $("#listaPedidos").innerHTML = `<p class="empty">Erro ao carregar: ${esc(p.error.message)}</p>`; return; }
-  LISTA = p.data; CONTAGEM = {};
-  (i.data || []).forEach(r => CONTAGEM[r.pedido_id] = (CONTAGEM[r.pedido_id] || 0) + 1);
+  LISTA = p.data; CONTAGEM = {}; REVISORES = {}; APROVADORES = {};
+  (i.data || []).forEach(r => {
+    CONTAGEM[r.pedido_id] = (CONTAGEM[r.pedido_id] || 0) + 1;
+    if(r.por_email) (REVISORES[r.pedido_id] ||= new Set()).add(r.por_email);
+  });
+  (e.data || []).forEach(r => { if(r.status === "aprovado" && r.por_email) (APROVADORES[r.pedido_id] ||= []).push(r.por_email); });
   renderLista();
 }
 function renderLista(){
@@ -613,17 +629,24 @@ function renderLista(){
     .map(([k,t]) => `<button type="button" data-filtro="${k}" aria-pressed="${FILTRO===k}">${t} <span class="cnt">${n(k)}</span></button>`).join("");
   const q = $("#busca").value.trim().toLowerCase();
   const rows = LISTA.filter(p => (FILTRO === "todos" || p.status === FILTRO) &&
-    (!q || [p.codigo, p.projeto, p.cliente].join(" ").toLowerCase().includes(q)));
+    (!q || [p.codigo, p.arquivo, p.projeto, p.cliente, revTxt(p.id), aprTxt(p.id)].join(" ").toLowerCase().includes(q)));
   $("#listaPedidos").innerHTML = rows.length ? `<div class="tblwrap"><table class="tbl lista">
-    <thead><tr><th>Pedido</th><th>Status</th><th>Checklist</th><th>Atualizado</th></tr></thead><tbody>
+    <thead><tr><th>Projeto</th><th>Job nº / arquivo</th><th>Revisado por</th><th>Status</th><th>Checklist</th><th>Atualizado</th></tr></thead><tbody>
     ${rows.map(p => { const tot = p.itens_esperados.length, f = Math.min(CONTAGEM[p.id] || 0, tot);
+      const rev = revTxt(p.id), apr = aprTxt(p.id);
       return `<tr data-ir="p=${p.id}" tabindex="0">
-        <td><b>${esc(p.codigo || "Sem código")}</b> ${esc(p.projeto || "")}<div class="sub">${esc(p.cliente || "")}</div></td>
+        <td><b>${esc(p.projeto || "Sem projeto")}</b><div class="sub">${esc(p.cliente || "")}</div></td>
+        <td><b>${esc(p.codigo || "Sem job")}</b><div class="arq">${esc(p.arquivo || "Arquivo não informado")}</div></td>
+        <td class="rev">${rev ? esc(rev) : '<span class="sub">Ninguém ainda</span>'}${apr ? `<div class="sub">Aprovado por ${esc(apr)}</div>` : ""}</td>
         <td><span class="stb ${p.status}">${STATUS[p.status]}</span>${p.aprovado_em ? `<div class="sub">${dt(p.aprovado_em)}</div>` : ""}</td>
         <td><div class="mini"><i style="width:${tot ? f/tot*100 : 0}%"></i></div><div class="sub">${f}/${tot}</div></td>
         <td class="sub">${dt(p.atualizado_em)}</td></tr>`; }).join("")}
     </tbody></table></div>` : `<p class="empty">${LISTA.length ? "Nenhum pedido neste filtro." : "Nenhum pedido ainda. Crie o primeiro em “Novo pedido”."}</p>`;
 }
+let REVISORES = {}, APROVADORES = {};
+function nomeMembro(email){ const m = MEMBROS.find(x => x.email === email); return m?.nome || email.split("@")[0]; }
+function revTxt(id){ return [...(REVISORES[id] || [])].map(nomeMembro).join(", "); }
+function aprTxt(id){ return [...new Set(APROVADORES[id] || [])].map(nomeMembro).join(", "); }
 $("#filtros").addEventListener("click", e=>{ const b = e.target.closest("[data-filtro]"); if(b){ FILTRO = b.dataset.filtro; renderLista(); }});
 $("#busca").addEventListener("input", renderLista);
 $("#listaPedidos").addEventListener("keydown", e=>{ if(e.key === "Enter" && e.target.dataset.ir) ir(e.target.dataset.ir); });
@@ -698,7 +721,7 @@ function renderPedido(){
   const lock = travado();
   document.title = (P.codigo ? P.codigo + " · " : "") + "Checklist de arte-final";
   $("#pTitulo").textContent = [P.codigo, P.projeto].filter(Boolean).join(" · ") || "Novo pedido";
-  $("#pSub").textContent = [P.cliente, P.criado_por_email ? "criado por " + P.criado_por_email + " em " + dt(P.criado_em) : ""].filter(Boolean).join(" · ");
+  $("#pSub").textContent = [P.arquivo, P.cliente, P.criado_por_email ? "criado por " + P.criado_por_email + " em " + dt(P.criado_em) : ""].filter(Boolean).join(" · ");
   const st = $("#pStatus"); st.className = "stb " + P.status; st.textContent = STATUS[P.status];
   // formulário (não sobrescreve o campo que está sendo digitado)
   document.querySelectorAll("#vPedido [data-f]").forEach(el=>{
@@ -822,7 +845,7 @@ $("#exportar").addEventListener("click", ()=>{
 });
 $("#excluir").addEventListener("click", async ()=>{
   if(ME.papel !== "admin") return;
-  const ok = await perguntar("Excluir pedido?", `O pedido “${P.codigo || P.projeto || "sem nome"}” e todo o histórico dele serão apagados. Isso não pode ser desfeito.`, {campo:false, ok:"Excluir"});
+  const ok = await perguntar("Excluir pedido?", `O pedido “${P.projeto || P.codigo || "sem nome"}” e todo o histórico dele serão apagados. Isso não pode ser desfeito.`, {campo:false, ok:"Excluir"});
   if(!ok) return;
   const {error} = await sb.rpc("excluir_pedido", {p_pedido:P.id});
   if(error) return flash(erroMsg(error), true);
@@ -913,7 +936,7 @@ async function reabrir(){
 }
 
 /* ---------- Histórico ---------- */
-const CAMPOS = {codigo:"código", projeto:"projeto", cliente:"cliente", formato:"formato", grafica:"gráfica", responsavel:"responsável", guia:"guia de cores"};
+const CAMPOS = {codigo:"job nº", arquivo:"nome do arquivo", projeto:"projeto", cliente:"cliente", formato:"formato", grafica:"gráfica", responsavel:"responsável", guia:"guia de cores"};
 function descrever(v){
   const d = v.detalhe || {};
   switch(v.acao){
@@ -1154,11 +1177,13 @@ document.getElementById("saveCmp").addEventListener("click", async ()=>{
   flash("Comparação registrada no pedido");
 });
 
-/* ---------- Guia de cores Camel / Legend ---------- */
+/* ---------- Guia de cores Camel / Legend / Winston ---------- */
 // [nome, [C,M,Y,K], [R,G,B], hex, pantone]
 let GUIAS = {};
 const cmykTxt = c => `C${c[0]} M${c[1]} Y${c[2]} K${c[3]}`;
-function chavesDoGuia(g){ return (g === "camel" ? ["camel"] : ["legend", "aroma"]).filter(k => GUIAS[k]); }
+const LINHAS_GUIA = {camel:["camel"], legend:["legend","aroma"], winston:["winston"]};
+const linhaGuia = g => LINHAS_GUIA[g] ? g : "camel";
+function chavesDoGuia(g){ return LINHAS_GUIA[linhaGuia(g)].filter(k => GUIAS[k]); }
 function coresDoGuia(g){ return chavesDoGuia(g).flatMap(k => GUIAS[k].grupos.flatMap(gr => gr[1].map(c => ({guia:k, n:c[0], cmyk:c[1], rgb:c[2], hex:c[3], pms:c[4]})))); }
 function lerCor(l){
   const hx = l.match(/#([0-9a-f]{6})\b/i) || l.trim().match(/^([0-9a-f]{6})$/i);
@@ -1182,7 +1207,7 @@ function casar(cor, lista){
 function renderGuia(){
   const box = document.getElementById("guia"); if(!box) return;
   if(!Object.keys(GUIAS).length){ box.innerHTML = '<p class="pl">Guia de cores indisponível.</p>'; return; }
-  const st = cur(), g = st.guia === "camel" ? "camel" : "legend";
+  const st = cur(), g = linhaGuia(st.guia);
   const btn = (k, t) => `<button type="button" data-g="${k}" aria-pressed="${g===k}">${t}</button>`;
   const chaves = chavesDoGuia(g);
   const grupos = chaves.flatMap(k => GUIAS[k].grupos.map(gr => [chaves.length > 1 ? GUIAS[k].nome + " · " + gr[0] : gr[0], gr[1]]));
@@ -1190,7 +1215,7 @@ function renderGuia(){
   box.innerHTML = `
     <h3>Guia de cores da marca</h3>
     <p class="pl">Escolha a linha do job. Clique numa cor para copiar o CMYK. Na conversão, cole as cores usadas na arte para conferir com o guia.</p>
-    <div class="gsel" role="group" aria-label="Guia de cores">${btn("camel","Camel")}${btn("legend","Legend")}</div>
+    <div class="gsel" role="group" aria-label="Guia de cores">${btn("camel","Camel")}${btn("legend","Legend")}${btn("winston","Winston")}</div>
     ${regras}
     ${grupos.map(([t, cs]) => `<div class="ggroup"><h4>${t}</h4><div class="sw">${cs.map(c => `
       <button type="button" data-copy="${cmykTxt(c[1])}" title="Copiar ${cmykTxt(c[1])}">
